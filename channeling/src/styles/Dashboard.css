@@ -96,6 +96,10 @@
   font-family: inherit;
 }
 
+.form-group select {
+  width: 100%;
+}
+
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
@@ -442,6 +446,14 @@
 
 .btn-delete:hover {
   background-color: #c0392b;
+}
+
+.appointments-overflow {
+  overflow-x: auto;
+}
+
+.appointments-overflow .records-table {
+  min-width: 1000px;
 }
 
 @media (max-width: 768px) {
