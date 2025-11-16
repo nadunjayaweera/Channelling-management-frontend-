@@ -35,6 +35,19 @@ const StaffDashboard = () => {
     password: "",
   });
 
+  const statusMap = {
+    Pending: 0,
+    Confirmed: 1,
+    Completed: 2,
+    Cancelled: 3,
+  };
+  const reverseStatusMap = {
+    0: "Pending",
+    1: "Confirmed",
+    2: "Completed",
+    3: "Cancelled",
+  };
+
   // Appointment form
   const [appointmentForm, setAppointmentForm] = useState({
     patientId: "",
@@ -360,12 +373,36 @@ const StaffDashboard = () => {
     setLabAppointments((prev) => prev.filter((a) => a.id !== id));
   };
 
-  const updateAppointmentStatus = (id, newStatus) => {
-    setAppointments((prev) =>
-      prev.map((a) =>
-        a.id === id ? { ...a, status: newStatus, updatedAt: new Date() } : a
-      )
-    );
+  const updateAppointmentStatus = async (id, newStatus) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(
+        `http://localhost:5000/api/appointment/update/${id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ status: statusMap[newStatus] }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setAppointments((prev) =>
+          prev.map((a) => (a.id === id ? { ...a, status: newStatus } : a))
+        );
+
+        alert("Status updated successfully!");
+      } else {
+        alert(result.message || "Status update failed");
+      }
+    } catch (error) {
+      alert("Error updating status");
+    }
   };
 
   const updateLabAppointmentStatus = (id, newStatus) => {
@@ -785,7 +822,6 @@ const StaffDashboard = () => {
                 <th>Doctor</th>
                 <th>Date/Time</th>
                 <th>Status</th>
-                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -807,7 +843,7 @@ const StaffDashboard = () => {
 
                   <td>
                     <select
-                      value={apt.status}
+                      value={reverseStatusMap[apt.status]}
                       onChange={(e) =>
                         updateAppointmentStatus(apt.id, e.target.value)
                       }
@@ -817,12 +853,6 @@ const StaffDashboard = () => {
                       <option>Completed</option>
                       <option>Cancelled</option>
                     </select>
-                  </td>
-
-                  <td>
-                    <button onClick={() => deleteAppointment(apt.id)}>
-                      Delete
-                    </button>
                   </td>
                 </tr>
               ))}
