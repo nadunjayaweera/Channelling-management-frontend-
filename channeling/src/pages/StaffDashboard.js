@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "../styles/Dashboard.css";
 
 const StaffDashboard = () => {
@@ -11,7 +11,12 @@ const StaffDashboard = () => {
   const [showPatientForm, setShowPatientForm] = useState(false);
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
   const [showLabAppointmentForm, setShowLabAppointmentForm] = useState(false);
+  const [loadingPatients, setLoadingPatients] = useState(false);
+  const [errorPatients, setErrorPatients] = useState(null);
+  const [loadingDoctors, setLoadingDoctors] = useState(false);
+  const [errorDoctors, setErrorDoctors] = useState(null);
 
+  // Define form states
   const [doctorForm, setDoctorForm] = useState({
     name: "",
     email: "",
@@ -23,6 +28,7 @@ const StaffDashboard = () => {
     name: "",
     email: "",
     mobileNo: "",
+    password: "",
   });
 
   const [appointmentForm, setAppointmentForm] = useState({
@@ -41,6 +47,76 @@ const StaffDashboard = () => {
     appointmentTime: "",
     status: "Pending",
   });
+
+  const fetchPatients = async () => {
+    setLoadingPatients(true);
+    setErrorPatients(null);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found.");
+      }
+
+      const response = await fetch("http://localhost:5000/api/patient/all", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setPatients(data.data.data); // Correctly accessing the nested data array
+    } catch (err) {
+      setErrorPatients(err.message);
+      console.error("Failed to fetch patients:", err);
+    } finally {
+      setLoadingPatients(false);
+    }
+  };
+
+  const fetchDoctors = async () => {
+    setLoadingDoctors(true);
+    setErrorDoctors(null);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No authentication token found.");
+      }
+
+      const response = await fetch("http://localhost:5000/api/doctor/all", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setDoctors(data);
+    } catch (err) {
+      setErrorDoctors(err.message);
+      console.error("Failed to fetch doctors:", err);
+    } finally {
+      setLoadingDoctors(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "patients") {
+      fetchPatients();
+    } else if (activeTab === "doctors") {
+      fetchDoctors();
+    }
+  }, [activeTab]);
 
   const handleDoctorChange = (e) => {
     const { name, value } = e.target;
@@ -74,7 +150,7 @@ const StaffDashboard = () => {
     }));
   };
 
-  const handleAddDoctor = (e) => {
+  const handleAddDoctor = async (e) => {
     e.preventDefault();
     if (
       doctorForm.name &&
@@ -82,20 +158,81 @@ const StaffDashboard = () => {
       doctorForm.speciality &&
       doctorForm.password
     ) {
-      setDoctors([...doctors, { ...doctorForm, id: Date.now() }]);
-      setDoctorForm({ name: "", email: "", speciality: "", password: "" });
-      setShowDoctorForm(false);
-      alert("Doctor registered successfully!");
+      try {
+        const response = await fetch(
+          "http://localhost:5000/api/auth/register",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              name: doctorForm.name,
+              email: doctorForm.email,
+              speciality: doctorForm.speciality,
+              password: doctorForm.password,
+              userType: 2,
+            }),
+          }
+        );
+
+        const data = await response.json();
+
+        if (response.ok) {
+          fetchDoctors(); // Re-fetch doctors after successful registration
+          setDoctorForm({ name: "", email: "", speciality: "", password: "" });
+          setShowDoctorForm(false);
+          alert("Doctor registered successfully!");
+        } else {
+          alert(data.message || "Registration failed");
+        }
+      } catch (error) {
+        console.error("Error during doctor registration:", error);
+        alert("An error occurred. Please try again.");
+      }
     }
   };
 
-  const handleAddPatient = (e) => {
+  const handleAddPatient = async (e) => {
     e.preventDefault();
-    if (patientForm.name && patientForm.email && patientForm.mobileNo) {
-      setPatients([...patients, { ...patientForm, id: Date.now() }]);
-      setPatientForm({ name: "", email: "", mobileNo: "" });
-      setShowPatientForm(false);
-      alert("Patient registered successfully!");
+    if (
+      patientForm.name &&
+      patientForm.email &&
+      patientForm.mobileNo &&
+      patientForm.password
+    ) {
+      try {
+        const response = await fetch(
+          "http://localhost:5000/api/auth/register",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              name: patientForm.name,
+              email: patientForm.email,
+              mobileNo: patientForm.mobileNo,
+              password: patientForm.password,
+              userType: 4,
+            }),
+          }
+        );
+
+        const data = await response.json();
+
+        if (response.ok) {
+          fetchPatients(); // Re-fetch patients after successful registration
+          setPatientForm({ name: "", email: "", mobileNo: "", password: "" });
+          setShowPatientForm(false);
+          alert("Patient registered successfully!");
+        } else {
+          alert(data.message || "Registration failed");
+        }
+      } catch (error) {
+        console.error("Error during patient registration:", error);
+        alert("An error occurred. Please try again.");
+      }
     }
   };
 
@@ -335,7 +472,11 @@ const StaffDashboard = () => {
           )}
 
           <div className="records-section">
-            {doctors.length === 0 ? (
+            {loadingDoctors && <p>Loading doctors...</p>}
+            {errorDoctors && (
+              <p className="error-message">Error: {errorDoctors}</p>
+            )}
+            {!loadingDoctors && !errorDoctors && doctors.length === 0 ? (
               <p className="no-records">No doctors registered yet.</p>
             ) : (
               <table className="records-table">
@@ -348,7 +489,7 @@ const StaffDashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {doctors.map((doc) => (
+                  {/* {doctors.map((doc) => (
                     <tr key={doc.id}>
                       <td>{doc.name}</td>
                       <td>{doc.email}</td>
@@ -362,7 +503,7 @@ const StaffDashboard = () => {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  ))} */}
                 </tbody>
               </table>
             )}
@@ -414,18 +555,32 @@ const StaffDashboard = () => {
                   </div>
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="patient-mobile">Mobile Number:</label>
-                  <input
-                    id="patient-mobile"
-                    type="tel"
-                    name="mobileNo"
-                    value={patientForm.mobileNo}
-                    onChange={handlePatientChange}
-                    placeholder="Enter 10-digit mobile number"
-                    maxLength="10"
-                    required
-                  />
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="patient-mobile">Mobile Number:</label>
+                    <input
+                      id="patient-mobile"
+                      type="tel"
+                      name="mobileNo"
+                      value={patientForm.mobileNo}
+                      onChange={handlePatientChange}
+                      placeholder="Enter 10-digit mobile number"
+                      maxLength="10"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="patient-password">Password:</label>
+                    <input
+                      id="patient-password"
+                      type="password"
+                      name="password"
+                      value={patientForm.password}
+                      onChange={handlePatientChange}
+                      placeholder="Enter password"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <button type="submit" className="btn-submit">
@@ -436,7 +591,11 @@ const StaffDashboard = () => {
           )}
 
           <div className="records-section">
-            {patients.length === 0 ? (
+            {loadingPatients && <p>Loading patients...</p>}
+            {errorPatients && (
+              <p className="error-message">Error: {errorPatients}</p>
+            )}
+            {!loadingPatients && !errorPatients && patients.length === 0 ? (
               <p className="no-records">No patients registered yet.</p>
             ) : (
               <table className="records-table">
@@ -516,11 +675,11 @@ const StaffDashboard = () => {
                       required
                     >
                       <option value="">-- Select Doctor --</option>
-                      {doctors.map((doc) => (
+                      {/* {doctors.map((doc) => (
                         <option key={doc.id} value={doc.id}>
                           {doc.name} ({doc.speciality})
                         </option>
-                      ))}
+                      ))} */}
                     </select>
                   </div>
                 </div>
@@ -693,11 +852,11 @@ const StaffDashboard = () => {
                       required
                     >
                       <option value="">-- Select Doctor --</option>
-                      {doctors.map((doc) => (
+                      {/* {doctors.map((doc) => (
                         <option key={doc.id} value={doc.id}>
                           {doc.name} ({doc.speciality})
                         </option>
-                      ))}
+                      ))} */}
                     </select>
                   </div>
                 </div>
