@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import "../styles/Auth.css";
 
 const PatientRegistrationForm = () => {
@@ -102,7 +103,7 @@ const PatientRegistrationForm = () => {
           </button>
         </form>
         <p className="auth-footer">
-          Already have an account? <a href="#login">Login here</a>
+          Already have an account? <Link to="/">Login here</Link>
         </p>
       </div>
     </div>

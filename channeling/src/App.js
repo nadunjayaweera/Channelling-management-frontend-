@@ -9,20 +9,32 @@ import LoginForm from "./components/LoginForm";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import PatientDashboard from "./pages/PatientDashboard";
 import StaffDashboard from "./pages/StaffDashboard";
+import DoctorRegistrationForm from "./components/DoctorRegistrationForm";
+import PatientRegistrationForm from "./components/PatientRegistrationForm";
 import "./App.css";
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState(null);
 
-  const handleLogin = (role) => {
+  const handleLogin = (userType) => {
     setIsLoggedIn(true);
-    setUserRole(role);
+    let roleString = '';
+    if (userType === 1) {
+      roleString = 'Staff';
+    } else if (userType === 2) {
+      roleString = 'Doctor';
+    } else if (userType === 4) {
+      roleString = 'Patient';
+    }
+    setUserRole(roleString);
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
     setUserRole(null);
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
   };
 
   return (
@@ -52,6 +64,10 @@ function App() {
               )
             }
           />
+
+          {/* Registration Routes */}
+          <Route path="/register/doctor" element={<DoctorRegistrationForm />} />
+          <Route path="/register/patient" element={<PatientRegistrationForm />} />
 
           {/* Patient Dashboard */}
           <Route

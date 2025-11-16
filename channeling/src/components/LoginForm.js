@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import "../styles/Auth.css";
 
 const LoginForm = ({ onLogin }) => {
-  const [role, setRole] = useState("Patient");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
@@ -16,7 +15,47 @@ const LoginForm = ({ onLogin }) => {
     return newErrors;
   };
 
-  const handleSubmit = (e) => {
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(data.message);
+        localStorage.setItem("token", data.token);
+        localStorage.setItem("user", JSON.stringify(data.user)); // Ensure userType is included
+        
+        const userRole = data.user.userType;
+        onLogin(userRole);
+
+        let rolePath = '';
+        if (userRole === 1) {
+          rolePath = 'staff';
+        } else if (userRole === 2) {
+          rolePath = 'doctor';
+        } else if (userRole === 4) {
+          rolePath = 'patient';
+        }
+        
+        navigate(`/${rolePath}-dashboard`);
+      } else {
+        alert(data.message || "Login failed");
+      }
+    } catch (error) {
+      console.error("Error during login:", error);
+      alert("An error occurred. Please try again.");
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = validateForm();
     if (Object.keys(newErrors).length > 0) {
@@ -24,11 +63,7 @@ const LoginForm = ({ onLogin }) => {
       return;
     }
 
-    // Call parent component's login handler
-    onLogin(role);
-
-    // Navigate to appropriate dashboard
-    navigate(`/${role.toLowerCase()}-dashboard`);
+    handleLogin(e);
   };
 
   return (
@@ -36,20 +71,6 @@ const LoginForm = ({ onLogin }) => {
       <div className="auth-card">
         <h2 className="auth-title">Hospital Channeling System</h2>
         <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="role">Select Role:</label>
-            <select
-              id="role"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="form-input"
-            >
-              <option value="Patient">Patient</option>
-              <option value="Doctor">Doctor</option>
-              <option value="Staff">Staff</option>
-            </select>
-          </div>
-
           <div className="form-group">
             <label htmlFor="email">Email:</label>
             <input
