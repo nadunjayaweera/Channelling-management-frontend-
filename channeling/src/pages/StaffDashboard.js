@@ -42,6 +42,7 @@ const StaffDashboard = () => {
     appointmentDate: "",
     appointmentTime: "",
     amount: "",
+    roomNo: "",
     status: "Pending",
   });
 
@@ -141,6 +142,14 @@ const StaffDashboard = () => {
   useEffect(() => {
     fetchSpecialities();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === "appointments") {
+      fetchPatients();
+      fetchDoctors();
+      fetchAppointments();
+    }
+  }, [activeTab]);
   /* ============================================================
      FORM HANDLERS
   ============================================================ */
@@ -232,34 +241,78 @@ const StaffDashboard = () => {
     }
   };
 
-  const handleAddAppointment = (e) => {
+  const handleAddAppointment = async (e) => {
     e.preventDefault();
 
-    const newAppointment = {
-      ...appointmentForm,
-      id: Date.now(),
-      appointmentNumber: `APT-${Date.now()}`.substring(0, 15),
-      receiptNumber: `RCP-${Date.now()}`.substring(0, 15),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      patientName:
-        patients.find((p) => p.id == appointmentForm.patientId)?.name || "N/A",
-      doctorName:
-        doctors.find((d) => d.id == appointmentForm.doctorId)?.name || "N/A",
-    };
+    try {
+      const token = localStorage.getItem("token");
 
-    setAppointments((prev) => [...prev, newAppointment]);
+      const body = {
+        patient: Number(appointmentForm.patientId),
+        doctor: Number(appointmentForm.doctorId),
+        appointmentDate: appointmentForm.appointmentDate,
+        time: appointmentForm.appointmentTime,
+        roomNo: appointmentForm.roomNo,
+        amount: Number(appointmentForm.amount),
+      };
 
-    setAppointmentForm({
-      patientId: "",
-      doctorId: "",
-      appointmentDate: "",
-      appointmentTime: "",
-      amount: "",
-      status: "Pending",
-    });
+      const response = await fetch(
+        "http://localhost:5000/api/appointment/save",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(body),
+        }
+      );
 
-    setShowAppointmentForm(false);
+      const data = await response.json();
+
+      if (response.ok) {
+        alert("Appointment created successfully!");
+        fetchAppointments();
+
+        setAppointmentForm({
+          patientId: "",
+          doctorId: "",
+          appointmentDate: "",
+          appointmentTime: "",
+          amount: "",
+          roomNo: "",
+          status: "Pending",
+        });
+
+        setShowAppointmentForm(false);
+      } else {
+        alert(data.message || "Failed to create appointment");
+      }
+    } catch (error) {
+      alert("Error creating appointment");
+    }
+  };
+
+  const fetchAppointments = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(
+        "http://localhost:5000/api/appointment/all",
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`, // ← TOKEN ADDED
+          },
+        }
+      );
+
+      const result = await response.json();
+
+      setAppointments(result?.data || []); // since backend returns { data: [] }
+    } catch (error) {
+      console.error("Error fetching appointments:", error);
+    }
   };
 
   const handleAddLabAppointment = (e) => {
@@ -583,64 +636,143 @@ const StaffDashboard = () => {
           </div>
 
           {showAppointmentForm && (
-            <div className="form-card">
-              <h4>Create Appointment</h4>
-              <form onSubmit={handleAddAppointment}>
-                <select
-                  name="patientId"
-                  value={appointmentForm.patientId}
-                  onChange={handleAppointmentChange}
-                  required
+            <div className="appointment-modal">
+              <div className="appointment-card">
+                {/* Header */}
+                <div className="form-header">
+                  <h3>Create Appointment</h3>
+                  <button
+                    className="close-btn"
+                    onClick={() => setShowAppointmentForm(false)}
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <form
+                  onSubmit={handleAddAppointment}
+                  className="appointment-form"
                 >
-                  <option value="">Select Patient</option>
-                  {patients.map((pat) => (
-                    <option key={pat.id} value={pat.id}>
-                      {pat.name}
-                    </option>
-                  ))}
-                </select>
+                  {/* Patient Selection */}
+                  <div className="form-row">
+                    <label>Patient</label>
+                    <select
+                      name="patientId"
+                      value={appointmentForm.patientId}
+                      onChange={handleAppointmentChange}
+                      required
+                    >
+                      <option value="">Select Patient</option>
+                      {patients.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.mobileNo})
+                        </option>
+                      ))}
+                    </select>
 
-                <select
-                  name="doctorId"
-                  value={appointmentForm.doctorId}
-                  onChange={handleAppointmentChange}
-                  required
-                >
-                  <option value="">Select Doctor</option>
-                  {doctors.map((doc) => (
-                    <option key={doc.id} value={doc.id}>
-                      {doc.name}
-                    </option>
-                  ))}
-                </select>
+                    {/* Patient Preview */}
+                    {appointmentForm.patientId && (
+                      <p className="preview-text">
+                        Selected:{" "}
+                        <strong>
+                          {
+                            patients.find(
+                              (p) => p.id == appointmentForm.patientId
+                            )?.name
+                          }
+                        </strong>
+                      </p>
+                    )}
+                  </div>
 
-                <input
-                  type="date"
-                  name="appointmentDate"
-                  value={appointmentForm.appointmentDate}
-                  onChange={handleAppointmentChange}
-                  required
-                />
+                  {/* Doctor Selection */}
+                  <div className="form-row">
+                    <label>Doctor</label>
+                    <select
+                      name="doctorId"
+                      value={appointmentForm.doctorId}
+                      onChange={handleAppointmentChange}
+                      required
+                    >
+                      <option value="">Select Doctor</option>
+                      {doctors.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          Dr. {d.name} ({d.speciality?.name})
+                        </option>
+                      ))}
+                    </select>
 
-                <input
-                  type="time"
-                  name="appointmentTime"
-                  value={appointmentForm.appointmentTime}
-                  onChange={handleAppointmentChange}
-                  required
-                />
+                    {/* Doctor Preview */}
+                    {appointmentForm.doctorId && (
+                      <p className="preview-text">
+                        Doctor:{" "}
+                        <strong>
+                          {
+                            doctors.find(
+                              (d) => d.id == appointmentForm.doctorId
+                            )?.name
+                          }
+                        </strong>
+                      </p>
+                    )}
+                  </div>
 
-                <input
-                  type="number"
-                  name="amount"
-                  placeholder="Amount"
-                  value={appointmentForm.amount}
-                  onChange={handleAppointmentChange}
-                  required
-                />
+                  {/* Date, Time, Room */}
+                  <div className="grid-3">
+                    <div className="form-row">
+                      <label>Date</label>
+                      <input
+                        type="date"
+                        name="appointmentDate"
+                        value={appointmentForm.appointmentDate}
+                        onChange={handleAppointmentChange}
+                        required
+                      />
+                    </div>
 
-                <button type="submit">Create Appointment</button>
-              </form>
+                    <div className="form-row">
+                      <label>Time</label>
+                      <input
+                        type="time"
+                        name="appointmentTime"
+                        value={appointmentForm.appointmentTime}
+                        onChange={handleAppointmentChange}
+                        required
+                      />
+                    </div>
+
+                    <div className="form-row">
+                      <label>Room No</label>
+                      <input
+                        type="text"
+                        name="roomNo"
+                        placeholder="Ex: R12A"
+                        value={appointmentForm.roomNo}
+                        onChange={handleAppointmentChange}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Amount */}
+                  <div className="form-row">
+                    <label>Amount (LKR)</label>
+                    <input
+                      type="number"
+                      name="amount"
+                      placeholder="Ex: 1500"
+                      value={appointmentForm.amount}
+                      onChange={handleAppointmentChange}
+                      required
+                    />
+                  </div>
+
+                  {/* Submit */}
+                  <button type="submit" className="btn-save">
+                    ➕ Add Appointment
+                  </button>
+                </form>
+              </div>
             </div>
           )}
 
@@ -661,11 +793,18 @@ const StaffDashboard = () => {
                 <tr key={apt.id}>
                   <td>{apt.appointmentNumber}</td>
                   <td>{apt.receiptNumber}</td>
-                  <td>{apt.patientName}</td>
-                  <td>{apt.doctorName}</td>
+
+                  {/* FIXED */}
+                  <td>{apt.patient?.name}</td>
+                  <td>{apt.doctor?.name}</td>
+
+                  {/* FIXED DATE + TIME */}
                   <td>
-                    {apt.appointmentDate} - {apt.appointmentTime}
+                    {new Date(apt.appointmentDate).toISOString().split("T")[0]}
+                    {" - "}
+                    {apt.time || "N/A"}
                   </td>
+
                   <td>
                     <select
                       value={apt.status}
@@ -679,6 +818,7 @@ const StaffDashboard = () => {
                       <option>Cancelled</option>
                     </select>
                   </td>
+
                   <td>
                     <button onClick={() => deleteAppointment(apt.id)}>
                       Delete
@@ -709,8 +849,8 @@ const StaffDashboard = () => {
               <form onSubmit={handleAddLabAppointment}>
                 <select
                   name="patientId"
-                  value={labAppointmentForm.patientId}
-                  onChange={handleLabAppointmentChange}
+                  value={appointmentForm.patientId}
+                  onChange={handleAppointmentChange}
                   required
                 >
                   <option value="">Select Patient</option>
