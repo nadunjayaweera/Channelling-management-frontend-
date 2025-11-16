@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
 } from "react-router-dom";
+
 import LoginForm from "./components/LoginForm";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import PatientDashboard from "./pages/PatientDashboard";
@@ -17,24 +18,34 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userRole, setUserRole] = useState(null);
 
+  //  AUTO LOGIN ON REFRESH
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const user = localStorage.getItem("user");
+
+    if (token && user) {
+      const parsedUser = JSON.parse(user);
+      setIsLoggedIn(true);
+
+      if (parsedUser.userType === 1) setUserRole("Staff");
+      if (parsedUser.userType === 2) setUserRole("Doctor");
+      if (parsedUser.userType === 4) setUserRole("Patient");
+    }
+  }, []);
+
   const handleLogin = (userType) => {
     setIsLoggedIn(true);
-    let roleString = '';
-    if (userType === 1) {
-      roleString = 'Staff';
-    } else if (userType === 2) {
-      roleString = 'Doctor';
-    } else if (userType === 4) {
-      roleString = 'Patient';
-    }
-    setUserRole(roleString);
+
+    if (userType === 1) setUserRole("Staff");
+    if (userType === 2) setUserRole("Doctor");
+    if (userType === 4) setUserRole("Patient");
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
     setUserRole(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
   };
 
   return (
@@ -53,7 +64,6 @@ function App() {
         )}
 
         <Routes>
-          {/* Login Route */}
           <Route
             path="/"
             element={
@@ -65,11 +75,12 @@ function App() {
             }
           />
 
-          {/* Registration Routes */}
           <Route path="/register/doctor" element={<DoctorRegistrationForm />} />
-          <Route path="/register/patient" element={<PatientRegistrationForm />} />
+          <Route
+            path="/register/patient"
+            element={<PatientRegistrationForm />}
+          />
 
-          {/* Patient Dashboard */}
           <Route
             path="/patient-dashboard"
             element={
@@ -81,7 +92,6 @@ function App() {
             }
           />
 
-          {/* Doctor Dashboard */}
           <Route
             path="/doctor-dashboard"
             element={
@@ -93,7 +103,6 @@ function App() {
             }
           />
 
-          {/* Staff Dashboard - Registration Management */}
           <Route
             path="/staff-dashboard"
             element={
@@ -105,7 +114,6 @@ function App() {
             }
           />
 
-          {/* Catch all */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </div>
